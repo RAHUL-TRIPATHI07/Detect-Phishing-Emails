@@ -1,13 +1,20 @@
 """
 FastAPI application for Intelligent Email Security Detection.
 """
+import os
 
-from fastapi import FastAPI, UploadFile, File , HTTPException
+from fastapi import FastAPI, UploadFile, File, HTTPException, Request
+from fastapi.responses import RedirectResponse
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
+from starlette.middleware.sessions import SessionMiddleware
 
 from src.predict import EmailSecurityPredictor
+from src.scanner import EmailScanner
 from src.preprocessing import validate_email_content
+from src.connectors.gmail import ( create_gmail_flow, get_gmail_credentials, list_gmail_messages, get_gmail_message_raw,  scan_gmail_messages,)
 
+os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
 app = FastAPI(
     title="Intelligent Email Security Detection API",
@@ -15,6 +22,23 @@ app = FastAPI(
     version="1.0.0"
 )
 
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://127.0.0.1:5500"
+    ],
+    allow_credentials=True,
+    allow_methods=["GET", "POST"],
+    allow_headers=["*"],
+)
+
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.getenv(
+        "SESSION_SECRET_KEY",
+        "development-only-secret-change-me"
+    )
+)
 
 class EmailRequest(BaseModel):
     subject: str
@@ -29,8 +53,46 @@ class EmailPredictionResponse(BaseModel):
     risk_level: str
     reasons: list[str]
 
+class ScanResultResponse(BaseModel):
+    message_id: str
+    thread_id: str | None = None
+    subject: str = ""
+    sender: str = ""
+    date: str = ""
+    status: str
+    category: str | None = None
+    spam_score: float | None = None
+    spam_decision: str | None = None
+    phishing_score: float | None = None
+    phishing_decision: str | None = None
+    risk_level: str | None = None
+    reasons: list[str] = []
+    error: str | None = None
+
+
+class ScanSummaryResponse(BaseModel):
+    total: int
+    successful: int
+    errors: int
+    spam: int
+    maybe_spam: int
+    phishing: int
+    both: int
+    none: int
+
+
+class GmailScanResponse(BaseModel):
+    summary: ScanSummaryResponse
+    results: list[ScanResultResponse]
+
 
 predictor = EmailSecurityPredictor()
+
+
+scanner = EmailScanner(
+    predictor=predictor
+)
+
 
 
 @app.get("/health")
@@ -83,6 +145,223 @@ async def predict_raw_email(file: UploadFile = File(...)):
         return predictor.predict_raw_email(raw_bytes)
 
     except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+
+@app.get("/auth/gmail")
+def gmail_login(request : Request):
+    flow = create_gmail_flow()
+
+    authorization_url, state = flow.authorization_url(
+        access_type="offline",
+        include_granted_scopes="true"
+    )
+
+    request.session["oauth_state"] = state
+
+    return RedirectResponse(
+        url=authorization_url
+    )
+
+
+@app.get("/auth/gmail/callback")
+def gmail_callback(request: Request):
+    state = request.session.get("oauth_state")
+
+    if not state:
+        raise HTTPException(
+            status_code=400,
+            detail="OAuth session state is missing."
+        )
+
+    flow = create_gmail_flow()
+
+    flow.state = state
+
+    try:
+        flow.fetch_token(
+            authorization_response=str(request.url)
+        )
+
+    except Exception as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Gmail OAuth failed: {exc}"
+        )
+
+    request.session["gmail_credentials"] = {
+        "token": flow.credentials.token,
+        "refresh_token": flow.credentials.refresh_token,
+        "token_uri": flow.credentials.token_uri,
+        "scopes": flow.credentials.scopes,
+    }
+
+    request.session.pop("oauth_state", None)
+
+    return {
+        "status": "connected",
+        "message": "Gmail account connected successfully."
+    }
+
+@app.get("/gmail/messages")
+def gmail_messages(request: Request, limit: int = 5):
+    token_data = request.session.get("gmail_credentials")
+
+    if not token_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Gmail account is not connected."
+        )
+
+    try:
+        credentials = get_gmail_credentials(token_data)
+
+        messages = list_gmail_messages(
+            credentials=credentials,
+            limit=limit
+        )
+
+        return {
+            "count": len(messages),
+            "messages": messages
+        }
+
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+
+@app.get("/gmail/messages/{message_id}/raw")
+def gmail_message_raw(
+    request: Request,
+    message_id: str
+):
+    token_data = request.session.get("gmail_credentials")
+
+    if not token_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Gmail account is not connected."
+        )
+
+    try:
+        credentials = get_gmail_credentials(token_data)
+
+        raw_bytes = get_gmail_message_raw(
+            credentials=credentials,
+            message_id=message_id
+        )
+
+        return {
+            "message_id": message_id,
+            "size_bytes": len(raw_bytes),
+            "message_preview": raw_bytes[:200].decode(
+                "utf-8",
+                errors="replace"
+            )
+        }
+
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+
+@app.get("/gmail/messages/{message_id}/predict")
+def predict_gmail_message(
+    request: Request,
+    message_id: str
+):
+    token_data = request.session.get("gmail_credentials")
+
+    if not token_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Gmail account is not connected."
+        )
+
+    try:
+        credentials = get_gmail_credentials(token_data)
+
+        raw_bytes = get_gmail_message_raw(
+            credentials=credentials,
+            message_id=message_id
+        )
+
+        result = predictor.predict_raw_email(raw_bytes)
+
+        return {
+            "message_id": message_id,
+            "result": result
+        }
+
+    except (ValueError, TypeError) as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc)
+        )
+
+
+
+
+@app.get(
+    "/gmail/scan",
+    response_model=GmailScanResponse
+)
+def scan_gmail(
+    request: Request,
+    limit: int = 20
+):
+    token_data = request.session.get("gmail_credentials")
+
+    if not token_data:
+        raise HTTPException(
+            status_code=401,
+            detail="Gmail account is not connected."
+        )
+
+    if limit <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="limit must be greater than zero."
+        )
+
+    if limit > 20:
+        raise HTTPException(
+            status_code=400,
+            detail="For now, limit cannot exceed 20."
+        )
+
+    try:
+        credentials = get_gmail_credentials(
+            token_data
+        )
+
+        messages = scan_gmail_messages(
+            credentials=credentials,
+            limit=limit
+        )
+
+        results = scanner.scan_messages(
+            messages
+        )
+
+        summary = scanner.summarize_results(
+            results
+        )
+
+        return {
+            "summary": summary,
+            "results": results
+        }
+
+    except (ValueError, TypeError) as exc:
         raise HTTPException(
             status_code=400,
             detail=str(exc)

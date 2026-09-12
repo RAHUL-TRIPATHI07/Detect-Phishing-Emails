@@ -37,3 +37,8 @@ data/processed/
 
 # Model artifacts
 models/*.joblib
+
+
+# Google OAuth credentials
+secrets/
+token.json

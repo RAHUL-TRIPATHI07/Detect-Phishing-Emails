@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Intelligent Email Security</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="header">
+    <div>
+        <h1>Intelligent Email Security</h1>
+        <p>Spam &amp; Phishing Risk Analysis</p>
+    </div>
+
+    <div class="header-actions">
+        <button id="connect-gmail-btn" class="btn secondary">
+            Connect Gmail
+        </button>
+
+        <button id="scan-btn" class="btn primary">
+            Scan Emails
+        </button>
+    </div>
+</header>
+
+
+<main class="container">
+
+    <!-- Summary -->
+
+    <section class="summary-grid">
+
+        <div class="summary-card">
+            <span class="card-label">Total Emails</span>
+            <strong id="total-count">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span class="card-label">Spam</span>
+            <strong id="spam-count">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span class="card-label">Maybe Spam</span>
+            <strong id="maybe-spam-count">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span class="card-label">Phishing</span>
+            <strong id="phishing-count">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span class="card-label">Both</span>
+            <strong id="both-count">0</strong>
+        </div>
+
+        <div class="summary-card">
+            <span class="card-label">None</span>
+            <strong id="none-count">0</strong>
+        </div>
+
+    </section>
+
+
+    <!-- Status -->
+
+    <section id="status" class="status">
+        Connect your Gmail account to scan emails.
+    </section>
+
+
+    <!-- Filters -->
+
+    <section class="filters">
+
+        <button class="filter-btn active" data-category="ALL">
+            All
+        </button>
+
+        <button class="filter-btn" data-category="SPAM">
+            Spam
+        </button>
+
+        <button class="filter-btn" data-category="MAYBE SPAM">
+            Maybe Spam
+        </button>
+
+        <button class="filter-btn" data-category="PHISHING">
+            Phishing
+        </button>
+
+        <button class="filter-btn" data-category="BOTH">
+            Both
+        </button>
+
+        <button class="filter-btn" data-category="NONE">
+            None
+        </button>
+
+    </section>
+
+
+    <!-- Results -->
+
+    <section class="results-section">
+
+        <div class="section-header">
+            <div>
+                <h2>Email Results</h2>
+                <p>Security analysis of scanned messages</p>
+            </div>
+        </div>
+
+        <div class="table-container">
+
+            <table>
+
+                <thead>
+                    <tr>
+                        <th>Email</th>
+                        <th>Sender</th>
+                        <th>Category</th>
+                        <th>Spam Score</th>
+                        <th>Phishing Score</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+
+                <tbody id="results-body">
+
+                    <tr>
+                        <td colspan="6" class="empty-state">
+                            No emails scanned yet.
+                        </td>
+                    </tr>
+
+                </tbody>
+
+            </table>
+
+        </div>
+
+    </section>
+
+</main>
+
+
+<!-- Email Detail Modal -->
+
+<div id="email-modal" class="modal hidden">
+
+    <div class="modal-content">
+
+        <div class="modal-header">
+            <h2>Email Security Details</h2>
+
+            <button id="close-modal-btn" class="close-btn">
+                &times;
+            </button>
+        </div>
+
+        <div id="email-details"></div>
+
+    </div>
+
+</div>
+
+
+<script src="script.js"></script>
+
+</body>
+</html>
