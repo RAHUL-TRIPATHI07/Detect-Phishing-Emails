@@ -1,0 +1,16 @@
+# Exported from Render on 2026-09-13T02:46:59Z
+version: "1"
+projects:
+- name: My project
+  environments:
+  - name: Production
+    services:
+    - type: web
+      name: Detect-Phishing-Emails-3
+      runtime: python
+      repo: https://github.com/RAHUL-TRIPATHI07/Detect-Phishing-Emails
+      plan: free
+      region: oregon
+      buildCommand: pip install -r requirements.txt
+      startCommand: uvicorn app.api:app --host 0.0.0.0 --port $PORT
+      autoDeployTrigger: commit
