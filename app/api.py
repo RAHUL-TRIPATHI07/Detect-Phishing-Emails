@@ -49,7 +49,7 @@ app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
     https_only=True,
-    same_site="lax"
+    same_site="none"
 )
 
 class EmailRequest(BaseModel):
