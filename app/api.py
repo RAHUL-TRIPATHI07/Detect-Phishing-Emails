@@ -4,10 +4,11 @@ FastAPI application for Intelligent Email Security Detection.
 import os
 
 from fastapi import FastAPI, UploadFile, File, HTTPException, Request
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from starlette.middleware.sessions import SessionMiddleware
+
 
 from src.predict import EmailSecurityPredictor
 from src.scanner import EmailScanner
@@ -113,7 +114,17 @@ def health_check():
     return {
         "status": "ok"
     }
+@app.get("/google7d93ac443c96cf2b.html", include_in_schema=False)
+def google_site_verification():
+    verification_file = os.path.join(
+        os.path.dirname(os.path.dirname(__file__)),
+        "google7d93ac443c96cf2b.html"
+    )
 
+    return FileResponse(
+        verification_file,
+        media_type="text/html"
+    )
 
 @app.post(
     "/predict",
