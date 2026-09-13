@@ -37,7 +37,8 @@ data/processed/
 
 # Model artifacts
 models/*.joblib
-
+!models/phishing_model.joblib
+!models/spam_model.joblib
 
 # Google OAuth credentials
 secrets/
