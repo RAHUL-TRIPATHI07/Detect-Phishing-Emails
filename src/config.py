@@ -23,12 +23,8 @@ GMAIL_REDIRECT_URI = os.getenv(
     "http://127.0.0.1:8000/auth/gmail/callback"
 )
 
-GOOGLE_CREDENTIALS_FILE = Path(
-    os.getenv(
-        "GOOGLE_CREDENTIALS_FILE",
-        str(PROJECT_ROOT / "secrets" / "credentials.json")
-    )
-)
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID")
+GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET")
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
@@ -46,10 +42,14 @@ def validate_config():
             "SESSION_SECRET_KEY is not configured."
         )
 
-    if not GOOGLE_CREDENTIALS_FILE.exists():
-        raise FileNotFoundError(
-            f"Google OAuth credentials not found: "
-            f"{GOOGLE_CREDENTIALS_FILE}"
+    if not GOOGLE_CLIENT_ID:
+        raise ValueError(
+            "GOOGLE_CLIENT_ID is not configured."
+        )
+
+    if not GOOGLE_CLIENT_SECRET:
+        raise ValueError(
+            "GOOGLE_CLIENT_SECRET is not configured."
         )
 
     if ENVIRONMENT == "production" and not TOKEN_ENCRYPTION_KEY:

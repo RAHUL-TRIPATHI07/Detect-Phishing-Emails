@@ -175,6 +175,7 @@ def gmail_login(request : Request):
     )
 
     request.session["oauth_state"] = state
+    
 
     return RedirectResponse(
         url=authorization_url

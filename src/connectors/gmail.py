@@ -13,15 +13,14 @@ from google.oauth2.credentials import Credentials
 
 from src.config import (
     GMAIL_REDIRECT_URI,
-    GOOGLE_CREDENTIALS_FILE,
+    GOOGLE_CLIENT_ID,
+    GOOGLE_CLIENT_SECRET,
 )
-
 
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly"
 ]
 
-CREDENTIALS_FILE = GOOGLE_CREDENTIALS_FILE
 
 REDIRECT_URI = GMAIL_REDIRECT_URI
 
@@ -31,20 +30,36 @@ def create_gmail_flow():
     Create a Google OAuth flow for Gmail access.
     """
 
-    if not CREDENTIALS_FILE.exists():
-        raise FileNotFoundError(
-            f"Gmail OAuth credentials not found: {CREDENTIALS_FILE}"
+    if not GOOGLE_CLIENT_ID:
+        raise ValueError(
+            "Google OAuth client ID is not configured."
         )
 
-    flow = Flow.from_client_secrets_file(
-        str(CREDENTIALS_FILE),
+    if not GOOGLE_CLIENT_SECRET:
+        raise ValueError(
+            "Google OAuth client secret is not configured."
+        )
+
+    client_config = {
+        "web": {
+            "client_id": GOOGLE_CLIENT_ID,
+            "client_secret": GOOGLE_CLIENT_SECRET,
+            "auth_uri": "https://accounts.google.com/o/oauth2/auth",
+            "token_uri": "https://oauth2.googleapis.com/token",
+        }
+    }
+
+    flow = Flow.from_client_config(
+        client_config,
         scopes=GMAIL_SCOPES,
         autogenerate_code_verifier=False
     )
 
-    flow.redirect_uri = REDIRECT_URI
+    flow.redirect_uri = GMAIL_REDIRECT_URI
 
     return flow
+
+
 
 
 def create_gmail_service(credentials):
