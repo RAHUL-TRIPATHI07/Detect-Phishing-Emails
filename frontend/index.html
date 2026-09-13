@@ -1,174 +1,524 @@
 <!DOCTYPE html>
+
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Intelligent Email Security</title>
-    <link rel="stylesheet" href="style.css">
+
+```
+<title>Sentinel AI — Email Security</title>
+
+<link rel="stylesheet" href="style.css">
+```
+
 </head>
 
 <body>
 
-<header class="header">
-    <div>
-        <h1>Intelligent Email Security</h1>
-        <p>Spam &amp; Phishing Risk Analysis</p>
+<div class="app-shell">
+
+```
+<!-- ================= SIDEBAR ================= -->
+
+<aside class="sidebar">
+
+    <div class="brand">
+        <div class="brand-mark">
+            <span></span>
+        </div>
+
+        <div>
+            <div class="brand-name">SENTINEL</div>
+            <div class="brand-subtitle">AI SECURITY</div>
+        </div>
     </div>
 
-    <div class="header-actions">
-        <button id="connect-gmail-btn" class="btn secondary">
-            Connect Gmail
+    <nav class="navigation">
+
+        <button  id="nav-overview" class="nav-item active">
+            <span class="nav-icon">⌂</span>
+            <span>Overview</span>
         </button>
 
-        <button id="scan-btn" class="btn primary">
-            Scan Emails
-        </button>
-    </div>
-</header>
-
-
-<main class="container">
-
-    <!-- Summary -->
-
-    <section class="summary-grid">
-
-        <div class="summary-card">
-            <span class="card-label">Total Emails</span>
-            <strong id="total-count">0</strong>
-        </div>
-
-        <div class="summary-card">
-            <span class="card-label">Spam</span>
-            <strong id="spam-count">0</strong>
-        </div>
-
-        <div class="summary-card">
-            <span class="card-label">Maybe Spam</span>
-            <strong id="maybe-spam-count">0</strong>
-        </div>
-
-        <div class="summary-card">
-            <span class="card-label">Phishing</span>
-            <strong id="phishing-count">0</strong>
-        </div>
-
-        <div class="summary-card">
-            <span class="card-label">Both</span>
-            <strong id="both-count">0</strong>
-        </div>
-
-        <div class="summary-card">
-            <span class="card-label">None</span>
-            <strong id="none-count">0</strong>
-        </div>
-
-    </section>
-
-
-    <!-- Status -->
-
-    <section id="status" class="status">
-        Connect your Gmail account to scan emails.
-    </section>
-
-
-    <!-- Filters -->
-
-    <section class="filters">
-
-        <button class="filter-btn active" data-category="ALL">
-            All
+        <button  id="nav-mailbox" class="nav-item">
+            <span class="nav-icon">✉</span>
+            <span>Mailbox</span>
         </button>
 
-        <button class="filter-btn" data-category="SPAM">
-            Spam
+        <button  id="nav-threats" class="nav-item">
+            <span class="nav-icon">⚠</span>
+            <span>Threats</span>
         </button>
 
-        <button class="filter-btn" data-category="MAYBE SPAM">
-            Maybe Spam
+        <button  id="nav-intelligence" class="nav-item">
+            <span class="nav-icon">◈</span>
+            <span>AI Intelligence</span>
         </button>
 
-        <button class="filter-btn" data-category="PHISHING">
-            Phishing
-        </button>
+    </nav>
 
-        <button class="filter-btn" data-category="BOTH">
-            Both
-        </button>
+    <div class="sidebar-bottom">
 
-        <button class="filter-btn" data-category="NONE">
-            None
-        </button>
+        <div class="system-status">
+            <span class="status-dot"></span>
 
-    </section>
-
-
-    <!-- Results -->
-
-    <section class="results-section">
-
-        <div class="section-header">
             <div>
-                <h2>Email Results</h2>
-                <p>Security analysis of scanned messages</p>
+                <strong>AI Engine Online</strong>
+                <small>Models operational</small>
             </div>
         </div>
 
-        <div class="table-container">
+        <div class="version">
+            SENTINEL AI · v1.0
+        </div>
 
-            <table>
+    </div>
+
+</aside>
+
+
+<!-- ================= MAIN ================= -->
+
+<main class="main-content">
+
+    <!-- TOP BAR -->
+
+    <header class="topbar">
+
+        <div>
+            <div class="eyebrow">EMAIL SECURITY INTELLIGENCE</div>
+
+            <h1>
+                Mailbox Overview
+            </h1>
+
+            <p class="page-description">
+                AI-powered analysis of your email security posture.
+            </p>
+        </div>
+
+
+        <div class="topbar-actions">
+
+            <div class="gmail-status">
+                <span class="gmail-dot"></span>
+
+                <div>
+                    <small>MAIL PROVIDER</small>
+                    <strong>Gmail Connected</strong>
+                </div>
+            </div>
+
+            <button
+                id="connect-gmail-btn"
+                class="secondary-button"
+            >
+                Connect Gmail
+            </button>
+
+            <button
+                id="scan-btn"
+                class="primary-button"
+            >
+                <span class="scan-icon">◉</span>
+                Scan Mailbox
+            </button>
+
+        </div>
+
+    </header>
+
+
+    <!-- STATUS -->
+
+    <div id="status" class="status-message">
+        Ready to analyze your mailbox.
+    </div>
+
+
+    <!-- ================= OVERVIEW CARDS ================= -->
+
+    <section class="metrics-grid"   id="threats-section">
+
+        <div class="metric-card metric-primary">
+
+            <div class="metric-header">
+                <span>EMAILS ANALYZED</span>
+                <span class="metric-symbol">◉</span>
+            </div>
+
+            <div
+                id="total-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                Messages processed by Sentinel AI
+            </div>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <div class="metric-header">
+                <span>SPAM DETECTED</span>
+                <span class="metric-symbol warning">●</span>
+            </div>
+
+            <div
+                id="spam-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                High-confidence spam
+            </div>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <div class="metric-header">
+                <span>MAYBE SPAM</span>
+                <span class="metric-symbol maybe">◐</span>
+            </div>
+
+            <div
+                id="maybe-spam-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                Requires human review
+            </div>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <div class="metric-header">
+                <span>PHISHING</span>
+                <span class="metric-symbol danger">◆</span>
+            </div>
+
+            <div
+                id="phishing-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                Phishing signal detected
+            </div>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <div class="metric-header">
+                <span>SPAM + PHISHING</span>
+                <span class="metric-symbol danger">⚠</span>
+            </div>
+
+            <div
+                id="both-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                Elevated security risk
+            </div>
+
+        </div>
+
+
+        <div class="metric-card">
+
+            <div class="metric-header">
+                <span>CLEAR</span>
+                <span class="metric-symbol safe">✓</span>
+            </div>
+
+            <div
+                id="none-count"
+                class="metric-value"
+            >
+                0
+            </div>
+
+            <div class="metric-footer">
+                No strong warning detected
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= AI OVERVIEW ================= -->
+
+    <section  id="ai-intelligence-section" class="intelligence-panel">
+
+        <div class="panel-heading">
+
+            <div>
+                <div class="eyebrow">SENTINEL INTELLIGENCE</div>
+
+                <h2>
+                    AI Threat Analysis
+                </h2>
+            </div>
+
+            <div class="live-indicator">
+                <span></span>
+                LIVE
+            </div>
+
+        </div>
+
+
+        <div class="intelligence-content">
+
+            <div class="security-orb">
+
+                <div class="orb-ring ring-one"></div>
+                <div class="orb-ring ring-two"></div>
+
+                <div class="orb-core">
+                    <span>AI</span>
+                </div>
+
+            </div>
+
+
+            <div class="intelligence-copy">
+
+                <div class="analysis-state">
+                    <span class="analysis-dot"></span>
+                    SECURITY ENGINE READY
+                </div>
+
+                <h3>
+                    Your mailbox is protected
+                    by two independent AI models.
+                </h3>
+
+                <p>
+                    Sentinel analyzes spam and phishing independently,
+                    then combines their signals through the risk engine
+                    to produce a final security assessment.
+                </p>
+
+
+                <div class="model-pipeline">
+
+                    <div class="pipeline-step">
+                        <span class="pipeline-number">01</span>
+
+                        <div>
+                            <strong>Spam Intelligence</strong>
+                            <small>Behavior & language signals</small>
+                        </div>
+                    </div>
+
+
+                    <div class="pipeline-line"></div>
+
+
+                    <div class="pipeline-step">
+                        <span class="pipeline-number">02</span>
+
+                        <div>
+                            <strong>Phishing Intelligence</strong>
+                            <small>Threat & deception signals</small>
+                        </div>
+                    </div>
+
+
+                    <div class="pipeline-line"></div>
+
+
+                    <div class="pipeline-step">
+                        <span class="pipeline-number">03</span>
+
+                        <div>
+                            <strong>Risk Engine</strong>
+                            <small>Combined security assessment</small>
+                        </div>
+                    </div>
+
+                </div>
+
+            </div>
+
+        </div>
+
+    </section>
+
+
+    <!-- ================= MAILBOX ================= -->
+
+    <section id="mailbox-section" class="mailbox-panel">
+
+        <div class="panel-heading mailbox-heading">
+
+            <div>
+                <div class="eyebrow">MAILBOX ACTIVITY</div>
+
+                <h2>
+                    Recent Messages
+                </h2>
+            </div>
+
+
+            <div class="filter-group">
+
+                <button
+                    class="filter-btn active"
+                    data-category="ALL"
+                >
+                    All
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-category="SPAM"
+                >
+                    Spam
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-category="MAYBE SPAM"
+                >
+                    Maybe
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-category="PHISHING"
+                >
+                    Phishing
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-category="BOTH"
+                >
+                    Both
+                </button>
+
+                <button
+                    class="filter-btn"
+                    data-category="NONE"
+                >
+                    Clear
+                </button>
+
+            </div>
+
+        </div>
+
+
+        <div class="table-wrapper">
+
+            <table class="results-table">
 
                 <thead>
                     <tr>
-                        <th>Email</th>
-                        <th>Sender</th>
-                        <th>Category</th>
-                        <th>Spam Score</th>
-                        <th>Phishing Score</th>
-                        <th>Risk</th>
+                        <th>EMAIL</th>
+                        <th>SENDER</th>
+                        <th>CLASSIFICATION</th>
+                        <th>SPAM</th>
+                        <th>PHISHING</th>
+                        <th>RISK</th>
                     </tr>
                 </thead>
 
                 <tbody id="results-body">
 
                     <tr>
-                        <td colspan="6" class="empty-state">
-                            No emails scanned yet.
+                        <td
+                            colspan="6"
+                            class="empty-state"
+                        >
+                            Scan your mailbox to begin AI analysis.
                         </td>
                     </tr>
 
                 </tbody>
 
             </table>
+            <div class="load-more-container">
+                <button
+                    id="load-more-btn" class="load-more-btn hidden" type="button" >
+                    Load More Emails
+               </button>
+            </div>
 
         </div>
 
     </section>
 
 </main>
-
-
-<!-- Email Detail Modal -->
-
-<div id="email-modal" class="modal hidden">
-
-    <div class="modal-content">
-
-        <div class="modal-header">
-            <h2>Email Security Details</h2>
-
-            <button id="close-modal-btn" class="close-btn">
-                &times;
-            </button>
-        </div>
-
-        <div id="email-details"></div>
-
-    </div>
+```
 
 </div>
 
+<!-- ================= EMAIL DETAIL MODAL ================= -->
+
+<div
+    id="email-modal"
+    class="modal hidden"
+>
+
+```
+<div class="modal-card">
+
+    <div class="modal-header">
+
+        <div>
+            <div class="eyebrow">
+                SENTINEL INVESTIGATION
+            </div>
+
+            <h2>
+                Email Security Analysis
+            </h2>
+        </div>
+
+        <button
+            id="close-modal-btn"
+            class="close-button"
+        >
+            ×
+        </button>
+
+    </div>
+
+
+    <div
+        id="email-details"
+        class="email-details"
+    ></div>
+
+</div>
+```
+
+</div>
 
 <script src="script.js"></script>
 

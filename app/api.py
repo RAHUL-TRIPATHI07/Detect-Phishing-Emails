@@ -12,7 +12,20 @@ from starlette.middleware.sessions import SessionMiddleware
 from src.predict import EmailSecurityPredictor
 from src.scanner import EmailScanner
 from src.preprocessing import validate_email_content
-from src.connectors.gmail import ( create_gmail_flow, get_gmail_credentials, list_gmail_messages, get_gmail_message_raw,  scan_gmail_messages,)
+from src.connectors.gmail import ( create_gmail_flow, get_gmail_credentials, list_gmail_messages, get_gmail_message_raw,  scan_gmail_messages , get_gmail_account_email,)
+from src.config import (
+    FRONTEND_URL,
+    SESSION_SECRET_KEY,
+)
+from src.oauth_storage import (
+    save_oauth_account,
+    get_oauth_account,
+    get_refresh_token,
+    delete_oauth_account,
+)
+from src.session import generate_session_id
+
+
 
 os.environ.setdefault("OAUTHLIB_INSECURE_TRANSPORT", "1")
 
@@ -34,10 +47,9 @@ app.add_middleware(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv(
-        "SESSION_SECRET_KEY",
-        "development-only-secret-change-me"
-    )
+    secret_key=SESSION_SECRET_KEY,
+    https_only=False,
+    same_site="lax"
 )
 
 class EmailRequest(BaseModel):
@@ -84,6 +96,7 @@ class ScanSummaryResponse(BaseModel):
 class GmailScanResponse(BaseModel):
     summary: ScanSummaryResponse
     results: list[ScanResultResponse]
+    next_page_token: str | None = None
 
 
 predictor = EmailSecurityPredictor()
@@ -157,7 +170,8 @@ def gmail_login(request : Request):
 
     authorization_url, state = flow.authorization_url(
         access_type="offline",
-        include_granted_scopes="true"
+        include_granted_scopes="true",
+        prompt="consent"
     )
 
     request.session["oauth_state"] = state
@@ -178,55 +192,84 @@ def gmail_callback(request: Request):
         )
 
     flow = create_gmail_flow()
-
     flow.state = state
 
     try:
         flow.fetch_token(
             authorization_response=str(request.url)
         )
-
     except Exception as exc:
         raise HTTPException(
             status_code=400,
             detail=f"Gmail OAuth failed: {exc}"
         )
 
-    request.session["gmail_credentials"] = {
-        "token": flow.credentials.token,
-        "refresh_token": flow.credentials.refresh_token,
-        "token_uri": flow.credentials.token_uri,
-        "scopes": flow.credentials.scopes,
-    }
+    credentials = flow.credentials
 
-    request.session.pop("oauth_state", None)
+    if not credentials.refresh_token:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Gmail authorization did not provide a refresh token. "
+                "Please authorize Gmail again."
+            )
+        )
 
-    return {
-        "status": "connected",
-        "message": "Gmail account connected successfully."
-    }
+    try:
+        email_address = get_gmail_account_email(
+            credentials
+        )
+
+        session_id = generate_session_id()
+
+        save_oauth_account(
+            session_id=session_id,
+            email_address=email_address,
+            refresh_token=credentials.refresh_token
+        )
+
+    except Exception:
+        import traceback
+        traceback.print_exc()
+        raise
+    request.session.clear()
+
+    request.session["session_id"] = session_id
+
+    return RedirectResponse(
+        url=FRONTEND_URL
+    )
 
 @app.get("/gmail/messages")
 def gmail_messages(request: Request, limit: int = 5):
-    token_data = request.session.get("gmail_credentials")
+    session_id = request.session.get("session_id")
 
-    if not token_data:
+    if not session_id:
+        raise HTTPException(
+          status_code=401,
+          detail="Gmail account is not connected."
+        )
+
+    refresh_token = get_refresh_token(session_id)
+
+    if not refresh_token:
         raise HTTPException(
             status_code=401,
             detail="Gmail account is not connected."
         )
 
     try:
-        credentials = get_gmail_credentials(token_data)
+        credentials = get_gmail_credentials(refresh_token)
 
-        messages = list_gmail_messages(
+        page = list_gmail_messages(
             credentials=credentials,
             limit=limit
         )
 
         return {
-            "count": len(messages),
-            "messages": messages
+            "count": len(page["messages"]),
+            "messages": page["messages"],
+            "next_page_token": page["next_page_token"]
         }
 
     except (ValueError, TypeError) as exc:
@@ -241,16 +284,24 @@ def gmail_message_raw(
     request: Request,
     message_id: str
 ):
-    token_data = request.session.get("gmail_credentials")
+    session_id = request.session.get("session_id")
 
-    if not token_data:
+    if not session_id:
+        raise HTTPException(
+          status_code=401,
+          detail="Gmail account is not connected."
+        )
+
+    refresh_token = get_refresh_token(session_id)
+
+    if not refresh_token:
         raise HTTPException(
             status_code=401,
             detail="Gmail account is not connected."
         )
 
     try:
-        credentials = get_gmail_credentials(token_data)
+        credentials = get_gmail_credentials(refresh_token)
 
         raw_bytes = get_gmail_message_raw(
             credentials=credentials,
@@ -278,16 +329,24 @@ def predict_gmail_message(
     request: Request,
     message_id: str
 ):
-    token_data = request.session.get("gmail_credentials")
+    session_id = request.session.get("session_id")
 
-    if not token_data:
+    if not session_id:
+        raise HTTPException(
+          status_code=401,
+          detail="Gmail account is not connected."
+        )
+
+    refresh_token = get_refresh_token(session_id)
+
+    if not refresh_token:
         raise HTTPException(
             status_code=401,
             detail="Gmail account is not connected."
         )
 
     try:
-        credentials = get_gmail_credentials(token_data)
+        credentials = get_gmail_credentials(refresh_token)
 
         raw_bytes = get_gmail_message_raw(
             credentials=credentials,
@@ -316,15 +375,28 @@ def predict_gmail_message(
 )
 def scan_gmail(
     request: Request,
-    limit: int = 20
+    limit: int = 20,
+    page_token: str | None = None
 ):
-    token_data = request.session.get("gmail_credentials")
 
-    if not token_data:
+    session_id = request.session.get("session_id")
+
+    if not session_id:
+        raise HTTPException(
+          status_code=401,
+          detail="Gmail account is not connected."
+        )
+
+    refresh_token = get_refresh_token(session_id)
+
+    if not refresh_token:
         raise HTTPException(
             status_code=401,
             detail="Gmail account is not connected."
         )
+
+
+        
 
     if limit <= 0:
         raise HTTPException(
@@ -339,18 +411,19 @@ def scan_gmail(
         )
 
     try:
-        credentials = get_gmail_credentials(
-            token_data
-        )
+        credentials = get_gmail_credentials(refresh_token)
+        
 
-        messages = scan_gmail_messages(
+        scan_result = scan_gmail_messages(
             credentials=credentials,
-            limit=limit
+            limit=limit,
+            page_token=page_token
         )
 
         results = scanner.scan_messages(
-            messages
+            scan_result["results"]
         )
+
 
         summary = scanner.summarize_results(
             results
@@ -358,7 +431,8 @@ def scan_gmail(
 
         return {
             "summary": summary,
-            "results": results
+            "results": results,
+            "next_page_token": scan_result["next_page_token"]
         }
 
     except (ValueError, TypeError) as exc:
@@ -366,3 +440,30 @@ def scan_gmail(
             status_code=400,
             detail=str(exc)
         )
+
+
+@app.get("/auth/gmail/status")
+def gmail_status(request: Request):
+    session_id = request.session.get("session_id")
+
+    if not session_id:
+        raise HTTPException(
+          status_code=401,
+          detail="Gmail account is not connected."
+        )
+
+    refresh_token = get_refresh_token(session_id)
+
+    if not refresh_token:
+        raise HTTPException(
+            status_code=401,
+            detail="Gmail account is not connected."
+        )
+
+    
+        
+
+
+    return {
+        "connected": True
+    }

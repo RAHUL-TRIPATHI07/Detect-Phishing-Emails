@@ -42,3 +42,6 @@ models/*.joblib
 # Google OAuth credentials
 secrets/
 token.json
+
+.env
+.env.*

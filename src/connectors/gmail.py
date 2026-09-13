@@ -4,7 +4,6 @@ Gmail connector.
 Handles Gmail OAuth authentication and message retrieval.
 """
 
-from pathlib import Path
 import base64
 
 from google_auth_oauthlib.flow import Flow
@@ -12,15 +11,19 @@ from googleapiclient.discovery import build
 from google.oauth2.credentials import Credentials
 
 
+from src.config import (
+    GMAIL_REDIRECT_URI,
+    GOOGLE_CREDENTIALS_FILE,
+)
+
+
 GMAIL_SCOPES = [
     "https://www.googleapis.com/auth/gmail.readonly"
 ]
 
-PROJECT_ROOT = Path(__file__).resolve().parents[2]
+CREDENTIALS_FILE = GOOGLE_CREDENTIALS_FILE
 
-CREDENTIALS_FILE = PROJECT_ROOT / "secrets" / "credentials.json"
-
-REDIRECT_URI = "http://127.0.0.1:8000/auth/gmail/callback"
+REDIRECT_URI = GMAIL_REDIRECT_URI
 
 
 def create_gmail_flow():
@@ -61,22 +64,48 @@ def create_gmail_service(credentials):
     service = build(
         "gmail",
         "v1",
-        credentials=credentials
+        credentials=credentials,
+        cache_discovery=False
     )
 
     return service
 
-
-def list_gmail_messages(credentials, limit=20):
+def get_gmail_account_email(credentials):
     """
-    List recent Gmail messages.
+    Retrieve the email address of the authenticated Gmail account.
+    """
+
+    service = create_gmail_service(credentials)
+
+    profile = (
+        service.users()
+        .getProfile(userId="me")
+        .execute()
+    )
+
+    email_address = profile["emailAddress"]
+
+    if not email_address:
+        raise ValueError(
+            "Unable to determine the Gmail account email address."
+        )
+
+    return email_address
+
+
+def list_gmail_messages(credentials, limit=20, page_token=None):
+    """
+    List Gmail messages with pagination support.
 
     Args:
         credentials: Google OAuth credentials.
         limit: Maximum number of messages to retrieve.
+        page_token: Gmail pagination token for the next page.
 
     Returns:
-        List of Gmail message metadata.
+        Dictionary containing:
+            - messages
+            - next_page_token
     """
 
     if not isinstance(limit, int):
@@ -85,20 +114,31 @@ def list_gmail_messages(credentials, limit=20):
     if limit <= 0:
         raise ValueError("limit must be greater than zero.")
 
+    if page_token is not None and not isinstance(page_token, str):
+        raise TypeError("page_token must be a string or None.")
+
     service = create_gmail_service(credentials)
+
+    request_kwargs = {
+        "userId": "me",
+        "maxResults": limit
+    }
+
+    if page_token:
+        request_kwargs["pageToken"] = page_token
 
     response = (
         service.users()
         .messages()
-        .list(
-            userId="me",
-            maxResults=limit
-        )
+        .list(**request_kwargs)
         .execute()
     )
-
-    return response.get("messages", [])
-
+    
+    return {
+        "messages": response.get("messages", []),
+         "next_page_token": response.get("nextPageToken")
+    }
+       
 
 def get_gmail_message_raw(credentials, message_id):
     """
@@ -138,45 +178,50 @@ def get_gmail_message_raw(credentials, message_id):
     return base64.urlsafe_b64decode(raw_data)
 
 
-def get_gmail_credentials(token_data):
+def get_gmail_credentials(refresh_token):
     """
-    Reconstruct Google OAuth credentials from stored token data.
-
-    Args:
-        token_data: Dictionary containing OAuth credential information.
-
-    Returns:
-        google.oauth2.credentials.Credentials
+    Create Gmail credentials from a stored refresh token.
     """
 
-    if not isinstance(token_data, dict):
-        raise TypeError("token_data must be a dictionary.")
-
-    token = token_data.get("token")
-    refresh_token = token_data.get("refresh_token")
-    token_uri = token_data.get("token_uri")
-    scopes = token_data.get("scopes")
-
-    if not token:
-        raise ValueError("OAuth access token is missing.")
+    if not isinstance(refresh_token, str) or not refresh_token.strip():
+        raise ValueError(
+            "OAuth refresh token is missing."
+        )
 
     flow = create_gmail_flow()
 
     client_config = flow.client_config
+   
+    # Google OAuth client configuration may be wrapped
+    # under "web" or "installed".
+    if "web" in client_config:
+        client_config = client_config["web"]
+    elif "installed" in client_config:
+        client_config = client_config["installed"]
 
-    client_id = client_config["client_id"]
-    client_secret = client_config["client_secret"]
+    client_id = client_config.get("client_id")
+    client_secret = client_config.get("client_secret")
+
+    if not client_id:
+        raise ValueError(
+            "Google OAuth client ID is missing."
+        )
+
+    if not client_secret:
+        raise ValueError(
+            "Google OAuth client secret is missing."
+        )
 
     return Credentials(
-        token=token,
+        token=None,
         refresh_token=refresh_token,
-        token_uri=token_uri,
+        token_uri="https://oauth2.googleapis.com/token",
         client_id=client_id,
         client_secret=client_secret,
-        scopes=scopes
+        scopes=GMAIL_SCOPES
     )
 
-def scan_gmail_messages(credentials, limit=20):
+def scan_gmail_messages(credentials, limit=20, page_token=None):
     """
     Retrieve Gmail messages with metadata and raw email content.
 
@@ -188,16 +233,21 @@ def scan_gmail_messages(credentials, limit=20):
         List of dictionaries containing Gmail metadata and raw bytes.
     """
 
-    messages = list_gmail_messages(
-        credentials=credentials,
-        limit=limit
-    )
+    page = list_gmail_messages(
+    credentials=credentials,
+    limit=limit,
+    page_token=page_token
+)
+
+    messages = page["messages"]
+    next_page_token = page["next_page_token"]
 
     service = create_gmail_service(credentials)
 
     results = []
 
     for message in messages:
+        
         message_id = message["id"]
 
         try:
@@ -216,12 +266,13 @@ def scan_gmail_messages(credentials, limit=20):
                 )
                 .execute()
             )
+        
+            
+            payload = gmail_message.get("payload", {})
 
             headers = {
                 header["name"].lower(): header["value"]
-                for header in gmail_message
-                .get("payload", {})
-                .get("headers", [])
+                for header in payload.get("headers", [])
             }
 
             raw_bytes = get_gmail_message_raw(
@@ -239,6 +290,7 @@ def scan_gmail_messages(credentials, limit=20):
             })
 
         except Exception as exc:
+            
             results.append({
                 "message_id": message_id,
                 "thread_id": message.get("threadId"),
@@ -246,4 +298,7 @@ def scan_gmail_messages(credentials, limit=20):
                 "error": str(exc)
             })
 
-    return results
+    return {
+      "results": results,
+      "next_page_token": next_page_token
+    }
