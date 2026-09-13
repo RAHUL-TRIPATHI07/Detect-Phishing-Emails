@@ -38,7 +38,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
-        "http://127.0.0.1:5500"
+        FRONTEND_URL
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST"],
@@ -48,7 +48,7 @@ app.add_middleware(
 app.add_middleware(
     SessionMiddleware,
     secret_key=SESSION_SECRET_KEY,
-    https_only=False,
+    https_only=True,
     same_site="lax"
 )
 

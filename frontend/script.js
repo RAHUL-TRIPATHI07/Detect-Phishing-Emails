@@ -1,9 +1,5 @@
 const API_BASE_URL = "https://detect-phishing-emails-3.onrender.com";
 
-// =========================================================
-// DOM ELEMENTS
-// =========================================================
-
 const connectGmailButton = document.getElementById("connect-gmail-btn");
 const scanButton = document.getElementById("scan-btn");
 const statusElement = document.getElementById("status");
@@ -14,19 +10,16 @@ const emailDetails = document.getElementById("email-details");
 const closeModalButton = document.getElementById("close-modal-btn");
 const loadMoreButton = document.getElementById("load-more-btn");
 
-// =========================================================
-// APPLICATION STATE
-// =========================================================
-
 let scanResults = [];
 let activeCategory = "ALL";
 let nextPageToken = null;
 let isLoadingMore = false;
 let isScanning = false;
 
-// =========================================================
-// STATUS
-// =========================================================
+
+/* =========================================================
+   UTILITY FUNCTIONS
+   ========================================================= */
 
 function setStatus(message) {
     if (statusElement) {
@@ -34,9 +27,6 @@ function setStatus(message) {
     }
 }
 
-// =========================================================
-// SCORE FORMATTING
-// =========================================================
 
 function formatScore(score) {
     if (typeof score !== "number") {
@@ -46,9 +36,6 @@ function formatScore(score) {
     return score.toFixed(3);
 }
 
-// =========================================================
-// CATEGORY STYLING
-// =========================================================
 
 function getCategoryClass(category) {
     switch (category) {
@@ -69,9 +56,6 @@ function getCategoryClass(category) {
     }
 }
 
-// =========================================================
-// RISK STYLING
-// =========================================================
 
 function getRiskClass(risk) {
     if (!risk) {
@@ -81,47 +65,17 @@ function getRiskClass(risk) {
     return `risk-${risk.toLowerCase()}`;
 }
 
-// =========================================================
-// SUMMARY CALCULATION
-// =========================================================
 
-function calculateSummary(results) {
-    return {
-        total: results.length,
-
-        successful: results.filter(
-            email => email.status === "success"
-        ).length,
-
-        errors: results.filter(
-            email => email.status === "error"
-        ).length,
-
-        spam: results.filter(
-            email => email.category === "SPAM"
-        ).length,
-
-        maybe_spam: results.filter(
-            email => email.category === "MAYBE SPAM"
-        ).length,
-
-        phishing: results.filter(
-            email => email.category === "PHISHING"
-        ).length,
-
-        both: results.filter(
-            email => email.category === "BOTH"
-        ).length,
-
-        none: results.filter(
-            email => email.category === "NONE"
-        ).length
-    };
+function escapeHtml(value) {
+    const div = document.createElement("div");
+    div.textContent = value ?? "";
+    return div.innerHTML;
 }
 
-// =========================================================
-// UPDATE DASHBOARD SUMMARY
-// =========================================================
+
+/* =========================================================
+   SUMMARY
+   ========================================================= */
 
 function updateSummary(summary) {
     if (!summary) {
@@ -160,9 +114,45 @@ function updateSummary(summary) {
     }
 }
 
-// =========================================================
-// RENDER RESULTS
-// =========================================================
+
+function calculateSummary(results) {
+    return {
+        total: results.length,
+
+        successful: results.filter(
+            email => email.status === "success"
+        ).length,
+
+        errors: results.filter(
+            email => email.status === "error"
+        ).length,
+
+        spam: results.filter(
+            email => email.category === "SPAM"
+        ).length,
+
+        maybe_spam: results.filter(
+            email => email.category === "MAYBE SPAM"
+        ).length,
+
+        phishing: results.filter(
+            email => email.category === "PHISHING"
+        ).length,
+
+        both: results.filter(
+            email => email.category === "BOTH"
+        ).length,
+
+        none: results.filter(
+            email => email.category === "NONE"
+        ).length
+    };
+}
+
+
+/* =========================================================
+   RENDER RESULTS
+   ========================================================= */
 
 function renderResults(results = scanResults) {
 
@@ -194,10 +184,6 @@ function renderResults(results = scanResults) {
 
         const row = document.createElement("tr");
 
-        // -------------------------------------------------
-        // ERROR RESULT
-        // -------------------------------------------------
-
         if (email.status === "error") {
 
             row.innerHTML = `
@@ -224,10 +210,6 @@ function renderResults(results = scanResults) {
 
             return;
         }
-
-        // -------------------------------------------------
-        // NORMAL RESULT
-        // -------------------------------------------------
 
         row.innerHTML = `
             <td class="email-subject">
@@ -266,9 +248,10 @@ function renderResults(results = scanResults) {
     });
 }
 
-// =========================================================
-// EMAIL DETAILS MODAL
-// =========================================================
+
+/* =========================================================
+   EMAIL DETAILS MODAL
+   ========================================================= */
 
 function showEmailDetails(email) {
 
@@ -363,9 +346,6 @@ function showEmailDetails(email) {
     emailModal.classList.remove("hidden");
 }
 
-// =========================================================
-// CLOSE MODAL
-// =========================================================
 
 function closeEmailDetails() {
 
@@ -376,46 +356,10 @@ function closeEmailDetails() {
     emailModal.classList.add("hidden");
 }
 
-// =========================================================
-// HTML ESCAPING
-// =========================================================
 
-function escapeHtml(value) {
-
-    if (value === null || value === undefined) {
-        return "";
-    }
-
-    const div = document.createElement("div");
-
-    div.textContent = String(value);
-
-    return div.innerHTML;
-}
-
-// =========================================================
-// API RESPONSE PARSER
-// =========================================================
-
-async function parseApiResponse(response) {
-
-    const contentType =
-        response.headers.get("content-type") || "";
-
-    if (contentType.includes("application/json")) {
-        return await response.json();
-    }
-
-    const text = await response.text();
-
-    return {
-        detail: text || "Unexpected server response."
-    };
-}
-
-// =========================================================
-// INITIAL GMAIL SCAN
-// =========================================================
+/* =========================================================
+   GMAIL SCANNING
+   ========================================================= */
 
 async function scanEmails() {
 
@@ -425,13 +369,13 @@ async function scanEmails() {
 
     isScanning = true;
 
-    scanButton.disabled = true;
+    if (scanButton) {
+        scanButton.disabled = true;
+    }
 
-    // Reset previous scan state.
-    scanResults = [];
-    nextPageToken = null;
-
-    updateLoadMoreButton();
+    if (loadMoreButton) {
+        loadMoreButton.disabled = true;
+    }
 
     setStatus("Scanning Gmail messages...");
 
@@ -445,34 +389,35 @@ async function scanEmails() {
             }
         );
 
-        const data = await parseApiResponse(response);
+        const data = await response.json();
 
         if (!response.ok) {
+
+            if (response.status === 401) {
+                throw new Error(
+                    "Gmail session expired. Please connect Gmail again."
+                );
+            }
+
             throw new Error(
                 data.detail || "Failed to scan Gmail."
             );
         }
 
-        // Store first page.
         scanResults = Array.isArray(data.results)
             ? data.results
             : [];
 
-        // Store pagination token.
-        nextPageToken =
-            data.next_page_token || null;
+        nextPageToken = data.next_page_token || null;
 
-        // Use backend summary when available.
-        // Otherwise calculate it locally.
-        const summary =
-            data.summary || calculateSummary(scanResults);
-
-        updateSummary(summary);
+        updateSummary(
+            data.summary || calculateSummary(scanResults)
+        );
 
         renderResults();
 
         const successful =
-            summary.successful ??
+            data.summary?.successful ??
             scanResults.filter(
                 email => email.status === "success"
             ).length;
@@ -491,24 +436,22 @@ async function scanEmails() {
             `Error: ${error.message || "Failed to scan Gmail."}`
         );
 
-        // Prevent stale pagination after a failed scan.
-        nextPageToken = null;
-
-        updateLoadMoreButton();
-
     } finally {
 
         isScanning = false;
 
-        scanButton.disabled = false;
+        if (scanButton) {
+            scanButton.disabled = false;
+        }
 
         updateLoadMoreButton();
     }
 }
 
-// =========================================================
-// LOAD MORE EMAILS
-// =========================================================
+
+/* =========================================================
+   LOAD MORE EMAILS
+   ========================================================= */
 
 async function loadMoreEmails() {
 
@@ -518,7 +461,10 @@ async function loadMoreEmails() {
 
     isLoadingMore = true;
 
-    updateLoadMoreButton();
+    if (loadMoreButton) {
+        loadMoreButton.disabled = true;
+        loadMoreButton.textContent = "Loading...";
+    }
 
     setStatus("Loading more Gmail messages...");
 
@@ -532,9 +478,16 @@ async function loadMoreEmails() {
             }
         );
 
-        const data = await parseApiResponse(response);
+        const data = await response.json();
 
         if (!response.ok) {
+
+            if (response.status === 401) {
+                throw new Error(
+                    "Gmail session expired. Please connect Gmail again."
+                );
+            }
+
             throw new Error(
                 data.detail || "Failed to load more emails."
             );
@@ -544,27 +497,21 @@ async function loadMoreEmails() {
             ? data.results
             : [];
 
-        // Append the new page.
         scanResults = [
             ...scanResults,
             ...newResults
         ];
 
-        // Store next pagination token.
-        nextPageToken =
-            data.next_page_token || null;
+        nextPageToken = data.next_page_token || null;
 
-        // Recalculate complete summary.
-        const summary =
-            calculateSummary(scanResults);
-
-        updateSummary(summary);
+        updateSummary(
+            calculateSummary(scanResults)
+        );
 
         renderResults();
 
         setStatus(
-            `Loaded ${newResults.length} more emails. ` +
-            `${summary.successful} emails analyzed in total.`
+            `Loaded ${newResults.length} more emails.`
         );
 
         updateLoadMoreButton();
@@ -572,13 +519,15 @@ async function loadMoreEmails() {
     } catch (error) {
 
         console.error(
-            "Loading more emails failed:",
+            "Failed to load more Gmail messages:",
             error
         );
 
         setStatus(
             `Error: ${error.message || "Failed to load more emails."}`
         );
+
+        updateLoadMoreButton();
 
     } finally {
 
@@ -588,19 +537,95 @@ async function loadMoreEmails() {
     }
 }
 
-// =========================================================
-// CONNECT GMAIL
-// =========================================================
+
+/* =========================================================
+   LOAD MORE BUTTON
+   ========================================================= */
+
+function updateLoadMoreButton() {
+
+    if (!loadMoreButton) {
+        return;
+    }
+
+    if (nextPageToken) {
+
+        loadMoreButton.classList.remove("hidden");
+
+        loadMoreButton.disabled =
+            isLoadingMore || isScanning;
+
+        loadMoreButton.textContent =
+            isLoadingMore
+                ? "Loading..."
+                : "Load More Emails";
+
+    } else {
+
+        loadMoreButton.classList.add("hidden");
+        loadMoreButton.disabled = false;
+    }
+}
+
+
+/* =========================================================
+   GMAIL CONNECTION
+   ========================================================= */
 
 function connectGmail() {
+
+    setStatus("Connecting to Gmail...");
 
     window.location.href =
         `${API_BASE_URL}/auth/gmail`;
 }
 
-// =========================================================
-// FILTERS
-// =========================================================
+
+/* =========================================================
+   GMAIL CONNECTION STATUS
+   ========================================================= */
+
+async function checkGmailConnection() {
+
+    try {
+
+        const response = await fetch(
+            `${API_BASE_URL}/auth/gmail/status`,
+            {
+                method: "GET",
+                credentials: "include"
+            }
+        );
+
+        if (response.status === 401) {
+            return false;
+        }
+
+        if (!response.ok) {
+            throw new Error(
+                "Unable to determine Gmail connection status."
+            );
+        }
+
+        const data = await response.json();
+
+        return data.connected === true;
+
+    } catch (error) {
+
+        console.error(
+            "Failed to check Gmail connection:",
+            error
+        );
+
+        return false;
+    }
+}
+
+
+/* =========================================================
+   CATEGORY FILTERS
+   ========================================================= */
 
 document
     .querySelectorAll(".filter-btn")
@@ -623,32 +648,49 @@ document
         });
     });
 
-// =========================================================
-// EVENT LISTENERS
-// =========================================================
+
+/* =========================================================
+   BUTTON EVENTS
+   ========================================================= */
 
 if (connectGmailButton) {
+
     connectGmailButton.addEventListener(
         "click",
         connectGmail
     );
 }
 
+
 if (scanButton) {
+
     scanButton.addEventListener(
         "click",
         scanEmails
     );
 }
 
+
+if (loadMoreButton) {
+
+    loadMoreButton.addEventListener(
+        "click",
+        loadMoreEmails
+    );
+}
+
+
 if (closeModalButton) {
+
     closeModalButton.addEventListener(
         "click",
         closeEmailDetails
     );
 }
 
+
 if (emailModal) {
+
     emailModal.addEventListener(
         "click",
         (event) => {
@@ -661,9 +703,10 @@ if (emailModal) {
     );
 }
 
-// =========================================================
-// SIDEBAR NAVIGATION
-// =========================================================
+
+/* =========================================================
+   SIDEBAR NAVIGATION
+   ========================================================= */
 
 const navOverview =
     document.getElementById("nav-overview");
@@ -677,6 +720,7 @@ const navThreats =
 const navIntelligence =
     document.getElementById("nav-intelligence");
 
+
 const navigationItems = [
     navOverview,
     navMailbox,
@@ -684,9 +728,6 @@ const navigationItems = [
     navIntelligence
 ].filter(Boolean);
 
-// =========================================================
-// ACTIVE NAVIGATION
-// =========================================================
 
 function setActiveNavigation(activeItem) {
 
@@ -699,9 +740,6 @@ function setActiveNavigation(activeItem) {
     }
 }
 
-// =========================================================
-// SCROLL TO SECTION
-// =========================================================
 
 function scrollToSection(sectionId) {
 
@@ -718,146 +756,74 @@ function scrollToSection(sectionId) {
     });
 }
 
-// =========================================================
-// NAVIGATION EVENTS
-// =========================================================
 
 if (navOverview) {
 
-    navOverview.addEventListener("click", () => {
-
-        setActiveNavigation(navOverview);
-
-        window.scrollTo({
-            top: 0,
-            behavior: "smooth"
-        });
-    });
-}
-
-if (navMailbox) {
-
-    navMailbox.addEventListener("click", () => {
-
-        setActiveNavigation(navMailbox);
-
-        scrollToSection("mailbox-section");
-    });
-}
-
-if (navThreats) {
-
-    navThreats.addEventListener("click", () => {
-
-        setActiveNavigation(navThreats);
-
-        scrollToSection("threats-section");
-    });
-}
-
-if (navIntelligence) {
-
-    navIntelligence.addEventListener("click", () => {
-
-        setActiveNavigation(navIntelligence);
-
-        scrollToSection("ai-intelligence-section");
-    });
-}
-
-// =========================================================
-// LOAD MORE BUTTON
-// =========================================================
-
-function updateLoadMoreButton() {
-
-    if (!loadMoreButton) {
-        return;
-    }
-
-    if (nextPageToken) {
-
-        loadMoreButton.classList.remove("hidden");
-
-        loadMoreButton.disabled =
-            isLoadingMore || isScanning;
-
-        if (isLoadingMore) {
-
-            loadMoreButton.textContent =
-                "Loading...";
-
-        } else {
-
-            loadMoreButton.textContent =
-                "Load More Emails";
-        }
-
-    } else {
-
-        loadMoreButton.classList.add("hidden");
-
-        loadMoreButton.disabled = false;
-
-        loadMoreButton.textContent =
-            "Load More Emails";
-    }
-}
-
-if (loadMoreButton) {
-
-    loadMoreButton.addEventListener(
+    navOverview.addEventListener(
         "click",
-        loadMoreEmails
+        () => {
+
+            setActiveNavigation(navOverview);
+
+            window.scrollTo({
+                top: 0,
+                behavior: "smooth"
+            });
+        }
     );
 }
 
-// =========================================================
-// GMAIL CONNECTION STATUS
-// =========================================================
 
-async function checkGmailConnection() {
+if (navMailbox) {
 
-    try {
+    navMailbox.addEventListener(
+        "click",
+        () => {
 
-        const response = await fetch(
-            `${API_BASE_URL}/auth/gmail/status`,
-            {
-                method: "GET",
-                credentials: "include"
-            }
-        );
+            setActiveNavigation(navMailbox);
 
-        const data =
-            await parseApiResponse(response);
-
-        if (!response.ok) {
-            throw new Error(
-                data.detail ||
-                "Failed to check Gmail connection."
+            scrollToSection(
+                "mailbox-section"
             );
         }
-
-        if (data.connected) {
-
-            // Connected state can be enhanced later.
-
-        } else {
-
-            // Disconnected state can be enhanced later.
-        }
-
-    } catch (error) {
-
-        console.error(
-            "Failed to check Gmail connection:",
-            error
-        );
-    }
+    );
 }
 
-// =========================================================
-// INITIAL UI STATE
-// =========================================================
+
+if (navThreats) {
+
+    navThreats.addEventListener(
+        "click",
+        () => {
+
+            setActiveNavigation(navThreats);
+
+            scrollToSection(
+                "threats-section"
+            );
+        }
+    );
+}
+
+
+if (navIntelligence) {
+
+    navIntelligence.addEventListener(
+        "click",
+        () => {
+
+            setActiveNavigation(navIntelligence);
+
+            scrollToSection(
+                "ai-intelligence-section"
+            );
+        }
+    );
+}
+
+
+/* =========================================================
+   INITIAL UI STATE
+   ========================================================= */
 
 updateLoadMoreButton();
