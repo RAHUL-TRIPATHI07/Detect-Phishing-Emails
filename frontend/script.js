@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://detect-phishing-emails-3.onrender.com";
+const API_BASE_URL = "http://127.0.0.1:8000";
 
 const connectGmailButton = document.getElementById("connect-gmail-btn");
 const scanButton = document.getElementById("scan-btn");
@@ -9,6 +9,16 @@ const emailModal = document.getElementById("email-modal");
 const emailDetails = document.getElementById("email-details");
 const closeModalButton = document.getElementById("close-modal-btn");
 const loadMoreButton = document.getElementById("load-more-btn");
+const gmailConsentCheckbox = document.getElementById("gmail-consent-checkbox");
+
+
+if (gmailConsentCheckbox && connectGmailButton) {
+    connectGmailButton.disabled = true;
+
+    gmailConsentCheckbox.addEventListener("change", () => {
+        connectGmailButton.disabled = !gmailConsentCheckbox.checked;
+    });
+}
 
 let scanResults = [];
 let activeCategory = "ALL";
@@ -622,6 +632,23 @@ async function checkGmailConnection() {
     }
 }
 
+async function updateGmailStatus() {
+
+    const statusText = document.getElementById("gmail-status-text");
+
+    if (!statusText) {
+        return;
+    }
+
+    const connected = await checkGmailConnection();
+
+    if (connected) {
+        statusText.textContent = "Gmail Connected";
+    } else {
+        statusText.textContent = "Gmail Not Connected";
+    }
+}
+
 
 /* =========================================================
    CATEGORY FILTERS
@@ -827,3 +854,4 @@ if (navIntelligence) {
    ========================================================= */
 
 updateLoadMoreButton();
+updateGmailStatus();
